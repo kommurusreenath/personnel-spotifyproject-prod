@@ -1,5 +1,5 @@
 {
-	"name": "pl_data_extract_SQL_to_datalake",
+	"name": "pl_spotify_data_extract_SQL_to_datalake",
 	"properties": {
 		"activities": [
 			{
