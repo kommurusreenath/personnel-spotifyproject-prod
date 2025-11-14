@@ -1,17 +1,9 @@
 {
-	"name": "ds_Azure_SQL_DB_table",
+	"name": "ds_Azure_SQL_DB",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "ls_Azure_SQL_DB",
 			"type": "LinkedServiceReference"
-		},
-		"parameters": {
-			"schema": {
-				"type": "string"
-			},
-			"table": {
-				"type": "string"
-			}
 		},
 		"annotations": [],
 		"type": "AzureSqlTable",

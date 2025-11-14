@@ -21,7 +21,7 @@
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "ds_Azure_SQL_DB",
+						"referenceName": "ds_Azure_SQL_DB_table",
 						"type": "DatasetReference",
 						"parameters": {
 							"schema": "etl_schema",
