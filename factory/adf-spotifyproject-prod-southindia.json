@@ -1,0 +1,9 @@
+{
+	"name": "adf-spotifyproject-prod-southindia",
+	"location": "southindia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "29a24f73-c74d-431d-9b5b-de53a742e48f",
+		"tenantId": "8fd4e2ce-55a7-4936-98f6-9a3719848f6e"
+	}
+}
