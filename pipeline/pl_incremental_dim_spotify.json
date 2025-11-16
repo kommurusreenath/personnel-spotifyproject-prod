@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Get table list",
+				"name": "Get Hash comparison table list",
 				"type": "Lookup",
 				"dependsOn": [],
 				"policy": {
@@ -24,19 +24,25 @@
 						"referenceName": "ds_Azure_SQL_DB_table",
 						"type": "DatasetReference",
 						"parameters": {
-							"schema": "etl_schema",
-							"table": "TableList"
+							"schema": {
+								"value": "@pipeline().parameters.etl_schema",
+								"type": "Expression"
+							},
+							"table": {
+								"value": "@pipeline().parameters.HashComparisonTable",
+								"type": "Expression"
+							}
 						}
 					},
 					"firstRowOnly": false
 				}
 			},
 			{
-				"name": "Iterate tables",
+				"name": "Iterate Hash comparison table list",
 				"type": "ForEach",
 				"dependsOn": [
 					{
-						"activity": "Get table list",
+						"activity": "Get Hash comparison table list",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -45,7 +51,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@activity('Get table list').output.value",
+						"value": "@activity('Get Hash comparison table list').output.value",
 						"type": "Expression"
 					},
 					"isSequential": true,
@@ -155,6 +161,16 @@
 				}
 			}
 		],
+		"parameters": {
+			"etl_schema": {
+				"type": "string",
+				"defaultValue": "etl_schema"
+			},
+			"HashComparisonTable": {
+				"type": "string",
+				"defaultValue": "HashComparisonScripts"
+			}
+		},
 		"annotations": []
 	}
 }
