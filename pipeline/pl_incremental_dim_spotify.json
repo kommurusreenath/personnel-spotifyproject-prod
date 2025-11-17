@@ -5,8 +5,6 @@
 			{
 				"name": "Get Hash comparison table list",
 				"type": "Lookup",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -31,7 +29,7 @@
 								"type": "Expression"
 							},
 							"table": {
-								"value": "@pipeline().parameters.HashComparisonTable",
+								"value": "@pipeline().parameters.HashComparisonTableScripts",
 								"type": "Expression"
 							}
 						}
@@ -42,8 +40,6 @@
 			{
 				"name": "Iterate Hash comparison table list",
 				"type": "ForEach",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Get Hash comparison table list",
@@ -255,9 +251,16 @@
 							}
 						},
 						{
-							"name": "Get DELETE IDs",
+							"name": "Run DELETE script",
 							"type": "Script",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Get DELETE IDs",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"timeout": "0.12:00:00",
 								"retry": 0,
@@ -275,7 +278,7 @@
 									{
 										"type": "Query",
 										"text": {
-											"value": "@item().IdentifyDeleteIDs",
+											"value": "@replace(item().DeleteScript, 'P_IDS', if(equals(activity('Get DELETE IDs').output.resultSets[0].rows[0].IDs,null),'''''',activity('Get DELETE IDs').output.resultSets[0].rows[0].IDs))",
 											"type": "Expression"
 										}
 									}
@@ -284,7 +287,7 @@
 							}
 						},
 						{
-							"name": "Copy data1",
+							"name": "Copy UPSERT data",
 							"type": "Copy",
 							"dependsOn": [
 								{
@@ -315,7 +318,7 @@
 										}
 									],
 									"sqlReaderQuery": {
-										"value": "@replace(item().SQLscript, 'P_IDS', activity('Get UPSERT IDs').output.resultSets[0].rows[0].IDs)",
+										"value": "@replace(item().UpsertScript, 'P_IDS', if(equals(activity('Get UPSERT IDs').output.resultSets[0].rows[0].IDs,null),'''''',activity('Get UPSERT IDs').output.resultSets[0].rows[0].IDs))",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -366,6 +369,35 @@
 									}
 								}
 							]
+						},
+						{
+							"name": "Get DELETE IDs",
+							"type": "Script",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_Azure_SQL_DB",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": {
+											"value": "@item().IdentifyDeleteIDs",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
 						}
 					]
 				}
