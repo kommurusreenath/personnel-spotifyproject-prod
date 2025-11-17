@@ -1497,6 +1497,583 @@
 				}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_inc_staging_to_blob_spotify')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Log pipeline start details",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[etl_schema].[Start_Execution_Log]",
+								"storedProcedureParameters": {
+									"PIPELINENAME": {
+										"type": "String",
+										"value": {
+											"value": "@pipeline().Pipeline",
+											"type": "Expression"
+										}
+									},
+									"RUNID": {
+										"type": "String",
+										"value": {
+											"value": "@pipeline().RunId",
+											"type": "Expression"
+										}
+									},
+									"SOURCEOBJECTNAME": {
+										"type": "String",
+										"value": null
+									},
+									"STARTTIME": {
+										"type": "DateTime",
+										"value": {
+											"value": "@utcNow()",
+											"type": "Expression"
+										}
+									},
+									"TRIGGEREDBYPIPELINENAME": {
+										"type": "String",
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineName",
+											"type": "Expression"
+										}
+									},
+									"TRIGGEREDBYRUNID": {
+										"type": "String",
+										"value": {
+											"value": "@pipeline()?.TriggeredByPipelineRunId",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_Azure_SQL_DB",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Iterate tables SQL to Blob",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get table details",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get table details').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Copy data from SQL to Blob",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "stast date time",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderQuery": {
+												"value": "@replace(item().SQLscript,'P_STARTDATE',addMinutes(activity('stast date time').output.resultSets[0].rows[0].StartTime,-1))",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "ParquetSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "ParquetWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "ds_Azure_SQL_DB",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ds_parquet_folder",
+											"type": "DatasetReference",
+											"parameters": {
+												"container": {
+													"value": "@pipeline().parameters.container",
+													"type": "Expression"
+												},
+												"folder": {
+													"value": "@concat(pipeline().parameters.folder,'/',item().TableName,'/')",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Log copy data start details",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderStoredProcedureName": "[[etl_schema].[Start_Execution_Log]",
+											"storedProcedureParameters": {
+												"PIPELINENAME": {
+													"type": "String",
+													"value": {
+														"value": "@pipeline().Pipeline",
+														"type": "Expression"
+													}
+												},
+												"RUNID": {
+													"type": "String",
+													"value": {
+														"value": "@pipeline().RunId",
+														"type": "Expression"
+													}
+												},
+												"SOURCEOBJECTNAME": {
+													"type": "String",
+													"value": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													}
+												},
+												"STARTTIME": {
+													"type": "DateTime",
+													"value": {
+														"value": "@utcNow()",
+														"type": "Expression"
+													}
+												},
+												"TRIGGEREDBYPIPELINENAME": {
+													"type": "String",
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineName",
+														"type": "Expression"
+													}
+												},
+												"TRIGGEREDBYRUNID": {
+													"type": "String",
+													"value": {
+														"value": "@pipeline()?.TriggeredByPipelineRunId",
+														"type": "Expression"
+													}
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "ds_Azure_SQL_DB",
+											"type": "DatasetReference",
+											"parameters": {}
+										},
+										"firstRowOnly": false
+									}
+								},
+								{
+									"name": "stast date time",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "Log copy data start details",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@concat('select max(starttime) as StartTime from [etl_schema].[EXECUTION_LOG] where PIPELINENAME=''',pipeline().Pipeline,''' AND SOURCE_OBJECT_NAME=''',item().TableName,''' AND EXECUTION_STATUS=''SUCCESS''')",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "End execution log",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Copy data from SQL to Blob",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[etl_schema].[End_Execution_Log]",
+										"storedProcedureParameters": {
+											"ENDTIME": {
+												"value": {
+													"value": "@utcNow()",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											},
+											"ERRORMESSAGE": {
+												"value": null,
+												"type": "String"
+											},
+											"EXECUTION_LOG_ID": {
+												"value": {
+													"value": "@activity('Log copy data start details').output.value[0].EXECUTION_LOG_ID",
+													"type": "Expression"
+												},
+												"type": "Int32"
+											},
+											"EXECUTIONSTATUS": {
+												"value": "SUCCESS",
+												"type": "String"
+											},
+											"LOGLEVEL": {
+												"value": null,
+												"type": "String"
+											},
+											"LOGTIME": {
+												"value": null,
+												"type": "DateTime"
+											},
+											"OBJECTCOPIED": {
+												"value": {
+													"value": "@activity('Copy data from SQL to Blob').output.rowsCopied",
+													"type": "Expression"
+												},
+												"type": "Int32"
+											},
+											"OBJECTREAD": {
+												"value": {
+													"value": "@activity('Copy data from SQL to Blob').output.rowsRead",
+													"type": "Expression"
+												},
+												"type": "Int32"
+											},
+											"OBJECTSKIPPED": {
+												"value": {
+													"value": "@sub(activity('Copy data from SQL to Blob').output.rowsRead, activity('Copy data from SQL to Blob').output.rowsCopied)",
+													"type": "Expression"
+												},
+												"type": "Int32"
+											},
+											"PIPELINENAME": {
+												"value": {
+													"value": "@pipeline().Pipeline",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"RUNID": {
+												"value": {
+													"value": "@pipeline().RunId",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"SOURCEOBJECTNAME": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Get table details",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Log pipeline start details",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_Azure_SQL_DB_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema": {
+										"value": "@pipeline().parameters.etl_schema",
+										"type": "Expression"
+									},
+									"table": {
+										"value": "@pipeline().parameters.IncrementalScriptsTable",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Pipeline End execution log",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Iterate tables SQL to Blob",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[etl_schema].[End_Execution_Log]",
+							"storedProcedureParameters": {
+								"ENDTIME": {
+									"value": {
+										"value": "@utcNow()",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"ERRORMESSAGE": {
+									"value": null,
+									"type": "String"
+								},
+								"EXECUTION_LOG_ID": {
+									"value": {
+										"value": "@activity('Log pipeline start details').output.value[0].EXECUTION_LOG_ID",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"EXECUTIONSTATUS": {
+									"value": "SUCCESS",
+									"type": "String"
+								},
+								"LOGLEVEL": {
+									"value": null,
+									"type": "String"
+								},
+								"LOGTIME": {
+									"value": null,
+									"type": "DateTime"
+								},
+								"OBJECTCOPIED": {
+									"value": null,
+									"type": "Int32"
+								},
+								"OBJECTREAD": {
+									"value": null,
+									"type": "Int32"
+								},
+								"OBJECTSKIPPED": {
+									"value": null,
+									"type": "Int32"
+								},
+								"PIPELINENAME": {
+									"value": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"RUNID": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"SOURCEOBJECTNAME": {
+									"value": null,
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_Azure_SQL_DB",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"etl_schema": {
+						"type": "string",
+						"defaultValue": "etl_schema"
+					},
+					"IncrementalScriptsTable": {
+						"type": "string",
+						"defaultValue": "IncrementalSQLtoBlobScripts"
+					},
+					"container": {
+						"type": "string",
+						"defaultValue": "bronze"
+					},
+					"folder": {
+						"type": "string",
+						"defaultValue": "Data"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]",
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]",
+				"[concat(variables('factoryId'), '/datasets/ds_parquet_folder')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_parquet_folder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_data_lake",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"container": {
+						"type": "string"
+					},
+					"folder": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@dataset().folder",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().container",
+							"type": "Expression"
+						}
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_data_lake')]"
+			]
 		}
 	]
 }
