@@ -259,1286 +259,7 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/pl_incremental_dim_spotify')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Get Hash comparison table list",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "ds_Azure_SQL_DB_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema": {
-										"value": "@pipeline().parameters.etl_schema",
-										"type": "Expression"
-									},
-									"table": {
-										"value": "@pipeline().parameters.HashComparisonTableScripts",
-										"type": "Expression"
-									}
-								}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "Iterate Hash comparison table list",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Get Hash comparison table list",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Get Hash comparison table list').output.value",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "source hash value",
-									"type": "Script",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().sourcehashscript",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								},
-								{
-									"name": "target hash value",
-									"type": "Script",
-									"dependsOn": [
-										{
-											"activity": "source hash value",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().targethashscript",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								},
-								{
-									"name": "Identify DML",
-									"type": "Script",
-									"dependsOn": [
-										{
-											"activity": "target hash value",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().IdentifyDML",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								}
-							]
-						}
-					},
-					{
-						"name": "Get incremental table scripts",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "Iterate Hash comparison table list",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "ds_Azure_SQL_DB_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema": {
-										"value": "@pipeline().parameters.etl_schema",
-										"type": "Expression"
-									},
-									"table": {
-										"value": "@pipeline().parameters.IncrementalTableScripts",
-										"type": "Expression"
-									}
-								}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEach1",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Get incremental table scripts",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Get incremental table scripts').output.value",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "Get UPSERT IDs",
-									"type": "Script",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().IdentifyUpsertIDs",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								},
-								{
-									"name": "Run DELETE script",
-									"type": "Script",
-									"dependsOn": [
-										{
-											"activity": "Get DELETE IDs",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@replace(item().DeleteScript, 'P_IDS', if(equals(activity('Get DELETE IDs').output.resultSets[0].rows[0].IDs,null),'''''',activity('Get DELETE IDs').output.resultSets[0].rows[0].IDs))",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								},
-								{
-									"name": "Copy UPSERT data",
-									"type": "Copy",
-									"dependsOn": [
-										{
-											"activity": "Get UPSERT IDs",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "AzureSqlSource",
-											"additionalColumns": [
-												{
-													"name": "last_incremental_update_date",
-													"value": {
-														"value": "@utcNow()",
-														"type": "Expression"
-													}
-												}
-											],
-											"sqlReaderQuery": {
-												"value": "@replace(item().UpsertScript, 'P_IDS', if(equals(activity('Get UPSERT IDs').output.resultSets[0].rows[0].IDs,null),'''''',activity('Get UPSERT IDs').output.resultSets[0].rows[0].IDs))",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "AzureSqlSink",
-											"writeBehavior": "upsert",
-											"upsertSettings": {
-												"useTempDB": true,
-												"keys": {
-													"value": "@split(item().UniqueKey,',')",
-													"type": "Expression"
-												}
-											},
-											"sqlWriterUseTableLock": false,
-											"disableMetricsCollection": false
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "ds_Azure_SQL_DB",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "ds_Azure_SQL_DB_table",
-											"type": "DatasetReference",
-											"parameters": {
-												"schema": {
-													"value": "@pipeline().parameters.target_schema",
-													"type": "Expression"
-												},
-												"table": {
-													"value": "@item().TableName",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								},
-								{
-									"name": "Get DELETE IDs",
-									"type": "Script",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().IdentifyDeleteIDs",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"etl_schema": {
-						"type": "string",
-						"defaultValue": "etl_schema"
-					},
-					"HashComparisonTableScripts": {
-						"type": "string",
-						"defaultValue": "HashComparisonScripts"
-					},
-					"IncrementalTableScripts": {
-						"type": "string",
-						"defaultValue": "IncrementalDimScripts"
-					},
-					"target_schema": {
-						"type": "string",
-						"defaultValue": "target"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
-				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]",
-				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_incremental_fact_spotify')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Get Fact Incremental scripts",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "ds_Azure_SQL_DB_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema": {
-										"value": "@pipeline().parameters.etl_schema",
-										"type": "Expression"
-									},
-									"table": {
-										"value": "@pipeline().parameters.IncrementalScripts",
-										"type": "Expression"
-									}
-								}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "Iterate incremental table list",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Get Fact Incremental scripts",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Get Fact Incremental scripts').output.value",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "Start Date",
-									"type": "Script",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().StartDateScript",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								},
-								{
-									"name": "End Date",
-									"type": "Script",
-									"dependsOn": [
-										{
-											"activity": "Start Date",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().EndDateScript",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								},
-								{
-									"name": "Copy Incremental",
-									"type": "Copy",
-									"dependsOn": [
-										{
-											"activity": "End Date",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "AzureSqlSource",
-											"additionalColumns": [
-												{
-													"name": "last_incremental_update_date",
-													"value": {
-														"value": "@utcNow()",
-														"type": "Expression"
-													}
-												}
-											],
-											"sqlReaderQuery": {
-												"value": "@replace(replace(item().SQLscript,'P_STARTDATE',addMinutes(activity('Start Date').output.resultSets[0].rows[0].StartDate,-1)), 'P_ENDDATE', activity('End Date').output.resultSets[0].rows[0].EndDate)",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "AzureSqlSink",
-											"writeBehavior": "upsert",
-											"upsertSettings": {
-												"useTempDB": true,
-												"keys": {
-													"value": "@split(item().UniqueKey,',')",
-													"type": "Expression"
-												}
-											},
-											"sqlWriterUseTableLock": false,
-											"disableMetricsCollection": false
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "ds_Azure_SQL_DB",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "ds_Azure_SQL_DB_table",
-											"type": "DatasetReference",
-											"parameters": {
-												"schema": {
-													"value": "@pipeline().parameters.target_schema",
-													"type": "Expression"
-												},
-												"table": {
-													"value": "@item().TableName",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"etl_schema": {
-						"type": "string",
-						"defaultValue": "etl_schema"
-					},
-					"IncrementalScripts": {
-						"type": "string",
-						"defaultValue": "IncrementalFactScripts"
-					},
-					"target_schema": {
-						"type": "string",
-						"defaultValue": "target"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
-				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]",
-				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_incremental_sql_hashvalue')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Get table list",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "ds_Azure_SQL_DB_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema": "etl_schema",
-									"table": "TableList"
-								}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "Iterate tables",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Get table list",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Get table list').output.value",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "source hash value",
-									"type": "Script",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().sourcehashscript",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								},
-								{
-									"name": "target hash value",
-									"type": "Script",
-									"dependsOn": [
-										{
-											"activity": "source hash value",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().targethashscript",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								},
-								{
-									"name": "Identify DML",
-									"type": "Script",
-									"dependsOn": [
-										{
-											"activity": "target hash value",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"linkedServiceName": {
-										"referenceName": "ls_Azure_SQL_DB",
-										"type": "LinkedServiceReference"
-									},
-									"typeProperties": {
-										"scripts": [
-											{
-												"type": "Query",
-												"text": {
-													"value": "@item().IdentifyDML",
-													"type": "Expression"
-												}
-											}
-										],
-										"scriptBlockExecutionTimeout": "02:00:00"
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
-				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_onetime_spotify')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Get extraction scripts for all tables",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "ds_Azure_SQL_DB_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema": {
-										"value": "@pipeline().parameters.etl_schema",
-										"type": "Expression"
-									},
-									"table": {
-										"value": "@pipeline().parameters.extraction_script_table",
-										"type": "Expression"
-									}
-								}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEach1",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Get extraction scripts for all tables",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Get extraction scripts for all tables').output.value",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "Copy data1",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "AzureSqlSource",
-											"additionalColumns": [
-												{
-													"name": "last_incremental_update_date",
-													"value": {
-														"value": "@utcNow()",
-														"type": "Expression"
-													}
-												}
-											],
-											"sqlReaderQuery": {
-												"value": "@item().SQLscript",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "AzureSqlSink",
-											"writeBehavior": "insert",
-											"sqlWriterUseTableLock": false
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "ds_Azure_SQL_DB",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "ds_Azure_SQL_DB_table",
-											"type": "DatasetReference",
-											"parameters": {
-												"schema": {
-													"value": "@pipeline().parameters.target_schema",
-													"type": "Expression"
-												},
-												"table": {
-													"value": "@item().TableName",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"etl_schema": {
-						"type": "string",
-						"defaultValue": "etl_schema"
-					},
-					"extraction_script_table": {
-						"type": "string",
-						"defaultValue": "OnetimeFactScripts"
-					},
-					"target_schema": {
-						"type": "string",
-						"defaultValue": "target"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
-				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_spotify_data_extract_SQL_to_datalake')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Azure SQL to datalake",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "cdc",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "current",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderQuery": {
-									"value": "SELECT * FROM @{pipeline().parameters.schema}.@{pipeline().parameters.table} WHERE @{pipeline().parameters.cdc_col} > '@{activity('cdc').output.firstRow.cdc}'",
-									"type": "Expression"
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "ParquetSink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								},
-								"formatSettings": {
-									"type": "ParquetWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "ds_Azure_SQL_DB",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ds_parquet_file",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "bronze",
-									"folder": "users",
-									"file": {
-										"value": "@concat(pipeline().parameters.table,'_', variables('current'))",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "cdc",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "JsonSource",
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "JsonReadSettings"
-								}
-							},
-							"dataset": {
-								"referenceName": "ds_json_file",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "bronze",
-									"folder": "cdc",
-									"file": "cdc.json"
-								}
-							}
-						}
-					},
-					{
-						"name": "current",
-						"type": "SetVariable",
-						"dependsOn": [],
-						"policy": {
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "current",
-							"value": {
-								"value": "@utcNow()",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "max cdc",
-						"type": "Script",
-						"dependsOn": [
-							{
-								"activity": "Azure SQL to datalake",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"linkedServiceName": {
-							"referenceName": "ls_Azure_SQL_DB",
-							"type": "LinkedServiceReference"
-						},
-						"typeProperties": {
-							"scripts": [
-								{
-									"type": "Query",
-									"text": {
-										"value": "SELECT max(@{pipeline().parameters.cdc_col}) as cdc FROM @{pipeline().parameters.schema}.@{pipeline().parameters.table}",
-										"type": "Expression"
-									}
-								}
-							],
-							"scriptBlockExecutionTimeout": "02:00:00"
-						}
-					},
-					{
-						"name": "Copy data1",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "max cdc",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "JsonSource",
-								"additionalColumns": [
-									{
-										"name": "cdc",
-										"value": {
-											"value": "@activity('max cdc').output.resultSets[0].rows[0].cdc",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "JsonReadSettings"
-								}
-							},
-							"sink": {
-								"type": "JsonSink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								},
-								"formatSettings": {
-									"type": "JsonWriteSettings"
-								}
-							},
-							"enableStaging": false
-						},
-						"inputs": [
-							{
-								"referenceName": "ds_json_file",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "bronze",
-									"folder": "cdc",
-									"file": "empty.json"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ds_json_file",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "bronze",
-									"folder": "cdc",
-									"file": "cdc.json"
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"schema": {
-						"type": "string",
-						"defaultValue": "dbo"
-					},
-					"table": {
-						"type": "string",
-						"defaultValue": "DimUser"
-					},
-					"cdc_col": {
-						"type": "string",
-						"defaultValue": "updated_at"
-					}
-				},
-				"variables": {
-					"current": {
-						"type": "String"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]",
-				"[concat(variables('factoryId'), '/datasets/ds_parquet_file')]",
-				"[concat(variables('factoryId'), '/datasets/ds_json_file')]",
-				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_inc_staging_to_blob_spotify')]",
+			"name": "[concat(parameters('factoryName'), '/pl_inc_staging_to_blob_spotify_i')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -2073,6 +794,1285 @@
 				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
 				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]",
 				"[concat(variables('factoryId'), '/datasets/ds_parquet_folder')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_incremental_dim_spotify_i')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Hash comparison table list",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_Azure_SQL_DB_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema": {
+										"value": "@pipeline().parameters.etl_schema",
+										"type": "Expression"
+									},
+									"table": {
+										"value": "@pipeline().parameters.HashComparisonTableScripts",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Iterate Hash comparison table list",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Hash comparison table list",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Hash comparison table list').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "source hash value",
+									"type": "Script",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().sourcehashscript",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "target hash value",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "source hash value",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().targethashscript",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "Identify DML",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "target hash value",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().IdentifyDML",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Get incremental table scripts",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Iterate Hash comparison table list",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_Azure_SQL_DB_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema": {
+										"value": "@pipeline().parameters.etl_schema",
+										"type": "Expression"
+									},
+									"table": {
+										"value": "@pipeline().parameters.IncrementalTableScripts",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEach1",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get incremental table scripts",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get incremental table scripts').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Get UPSERT IDs",
+									"type": "Script",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().IdentifyUpsertIDs",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "Run DELETE script",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "Get DELETE IDs",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@replace(item().DeleteScript, 'P_IDS', if(equals(activity('Get DELETE IDs').output.resultSets[0].rows[0].IDs,null),'''''',activity('Get DELETE IDs').output.resultSets[0].rows[0].IDs))",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "Copy UPSERT data",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Get UPSERT IDs",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"additionalColumns": [
+												{
+													"name": "last_incremental_update_date",
+													"value": {
+														"value": "@utcNow()",
+														"type": "Expression"
+													}
+												}
+											],
+											"sqlReaderQuery": {
+												"value": "@replace(item().UpsertScript, 'P_IDS', if(equals(activity('Get UPSERT IDs').output.resultSets[0].rows[0].IDs,null),'''''',activity('Get UPSERT IDs').output.resultSets[0].rows[0].IDs))",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "AzureSqlSink",
+											"writeBehavior": "upsert",
+											"upsertSettings": {
+												"useTempDB": true,
+												"keys": {
+													"value": "@split(item().UniqueKey,',')",
+													"type": "Expression"
+												}
+											},
+											"sqlWriterUseTableLock": false,
+											"disableMetricsCollection": false
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "ds_Azure_SQL_DB",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ds_Azure_SQL_DB_table",
+											"type": "DatasetReference",
+											"parameters": {
+												"schema": {
+													"value": "@pipeline().parameters.target_schema",
+													"type": "Expression"
+												},
+												"table": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Get DELETE IDs",
+									"type": "Script",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().IdentifyDeleteIDs",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"etl_schema": {
+						"type": "string",
+						"defaultValue": "etl_schema"
+					},
+					"HashComparisonTableScripts": {
+						"type": "string",
+						"defaultValue": "HashComparisonScripts"
+					},
+					"IncrementalTableScripts": {
+						"type": "string",
+						"defaultValue": "IncrementalDimScripts"
+					},
+					"target_schema": {
+						"type": "string",
+						"defaultValue": "target"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]",
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_incremental_fact_spotify_i')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Fact Incremental scripts",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_Azure_SQL_DB_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema": {
+										"value": "@pipeline().parameters.etl_schema",
+										"type": "Expression"
+									},
+									"table": {
+										"value": "@pipeline().parameters.IncrementalScripts",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Iterate incremental table list",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Fact Incremental scripts",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Fact Incremental scripts').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Start Date",
+									"type": "Script",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().StartDateScript",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "End Date",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "Start Date",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().EndDateScript",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "Copy Incremental",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "End Date",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"additionalColumns": [
+												{
+													"name": "last_incremental_update_date",
+													"value": {
+														"value": "@utcNow()",
+														"type": "Expression"
+													}
+												}
+											],
+											"sqlReaderQuery": {
+												"value": "@replace(replace(item().SQLscript,'P_STARTDATE',addMinutes(activity('Start Date').output.resultSets[0].rows[0].StartDate,-1)), 'P_ENDDATE', activity('End Date').output.resultSets[0].rows[0].EndDate)",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "AzureSqlSink",
+											"writeBehavior": "upsert",
+											"upsertSettings": {
+												"useTempDB": true,
+												"keys": {
+													"value": "@split(item().UniqueKey,',')",
+													"type": "Expression"
+												}
+											},
+											"sqlWriterUseTableLock": false,
+											"disableMetricsCollection": false
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "ds_Azure_SQL_DB",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ds_Azure_SQL_DB_table",
+											"type": "DatasetReference",
+											"parameters": {
+												"schema": {
+													"value": "@pipeline().parameters.target_schema",
+													"type": "Expression"
+												},
+												"table": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"etl_schema": {
+						"type": "string",
+						"defaultValue": "etl_schema"
+					},
+					"IncrementalScripts": {
+						"type": "string",
+						"defaultValue": "IncrementalFactScripts"
+					},
+					"target_schema": {
+						"type": "string",
+						"defaultValue": "target"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]",
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_incremental_sql_hashvalue')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get table list",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_Azure_SQL_DB_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema": "etl_schema",
+									"table": "TableList"
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Iterate tables",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get table list",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get table list').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "source hash value",
+									"type": "Script",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().sourcehashscript",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "target hash value",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "source hash value",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().targethashscript",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								},
+								{
+									"name": "Identify DML",
+									"type": "Script",
+									"dependsOn": [
+										{
+											"activity": "target hash value",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "ls_Azure_SQL_DB",
+										"type": "LinkedServiceReference"
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "Query",
+												"text": {
+													"value": "@item().IdentifyDML",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_onetime_spotify_i')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get extraction scripts for all tables",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_Azure_SQL_DB_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema": {
+										"value": "@pipeline().parameters.etl_schema",
+										"type": "Expression"
+									},
+									"table": {
+										"value": "@pipeline().parameters.extraction_script_table",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEach1",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get extraction scripts for all tables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get extraction scripts for all tables').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Copy data1",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"additionalColumns": [
+												{
+													"name": "last_incremental_update_date",
+													"value": {
+														"value": "@utcNow()",
+														"type": "Expression"
+													}
+												}
+											],
+											"sqlReaderQuery": {
+												"value": "@item().SQLscript",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "AzureSqlSink",
+											"writeBehavior": "insert",
+											"sqlWriterUseTableLock": false
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "ds_Azure_SQL_DB",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ds_Azure_SQL_DB_table",
+											"type": "DatasetReference",
+											"parameters": {
+												"schema": {
+													"value": "@pipeline().parameters.target_schema",
+													"type": "Expression"
+												},
+												"table": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"etl_schema": {
+						"type": "string",
+						"defaultValue": "etl_schema"
+					},
+					"extraction_script_table": {
+						"type": "string",
+						"defaultValue": "OnetimeFactScripts"
+					},
+					"target_schema": {
+						"type": "string",
+						"defaultValue": "target"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB_table')]",
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_spotify_data_extract_SQL_to_datalake')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Azure SQL to datalake",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "cdc",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "current",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "SELECT * FROM @{pipeline().parameters.schema}.@{pipeline().parameters.table} WHERE @{pipeline().parameters.cdc_col} > '@{activity('cdc').output.firstRow.cdc}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_Azure_SQL_DB",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_parquet_file",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "bronze",
+									"folder": "users",
+									"file": {
+										"value": "@concat(pipeline().parameters.table,'_', variables('current'))",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "cdc",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "ds_json_file",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "bronze",
+									"folder": "cdc",
+									"file": "cdc.json"
+								}
+							}
+						}
+					},
+					{
+						"name": "current",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "current",
+							"value": {
+								"value": "@utcNow()",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "max cdc",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "Azure SQL to datalake",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_Azure_SQL_DB",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "SELECT max(@{pipeline().parameters.cdc_col}) as cdc FROM @{pipeline().parameters.schema}.@{pipeline().parameters.table}",
+										"type": "Expression"
+									}
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "Copy data1",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "max cdc",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"additionalColumns": [
+									{
+										"name": "cdc",
+										"value": {
+											"value": "@activity('max cdc').output.resultSets[0].rows[0].cdc",
+											"type": "Expression"
+										}
+									}
+								],
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"sink": {
+								"type": "JsonSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "JsonWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_json_file",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "bronze",
+									"folder": "cdc",
+									"file": "empty.json"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_json_file",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "bronze",
+									"folder": "cdc",
+									"file": "cdc.json"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"schema": {
+						"type": "string",
+						"defaultValue": "dbo"
+					},
+					"table": {
+						"type": "string",
+						"defaultValue": "DimUser"
+					},
+					"cdc_col": {
+						"type": "string",
+						"defaultValue": "updated_at"
+					}
+				},
+				"variables": {
+					"current": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_Azure_SQL_DB')]",
+				"[concat(variables('factoryId'), '/datasets/ds_parquet_file')]",
+				"[concat(variables('factoryId'), '/datasets/ds_json_file')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_Azure_SQL_DB')]"
 			]
 		}
 	]
